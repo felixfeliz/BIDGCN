@@ -6,8 +6,7 @@ from scipy.special import binom
 from torch.utils.data import IterableDataset
 import random
 
-import pygismo as gs
-
+from scipy.spatial.transform import Rotation
 
 def greville_abscissa(knots, d):
     # knots : [bs, num_of_knots]
@@ -51,11 +50,20 @@ class BezierSurf:
         self.device = device
         self.knots = torch.cat((torch.zeros(self.d + 1), torch.ones(self.d + 1)))
         self.gx = greville_abscissa(self.knots.unsqueeze(0), self.d)[0].to(self.device)
+        self.coefs = torch.zeros(((self.d + 1)**2, 3))
 
-    def get_surface(self, coefs):
-        ku = gs.nurbs.gsKnotVector(list(self.knots.detach().numpy()), self.d)
-        surf = gs.nurbs.gsTensorBSpline2(ku, ku, coefs)
-        return surf
+    def eval(self, params):
+        # Eval basis
+        mat = ber_tensorbasis2(self.d, torch.tensor(params).transpose(1,0))
+        mat = mat.reshape(mat.shape[0], -1)
+        result = torch.tensordot(mat, self.coefs, dims=1)
+        return result.transpose(1,0)
+
+    def rotate(self, phi, rotaxis):
+        rotaxis = rotaxis / np.linalg.norm(rotaxis) * phi
+        r = Rotation.from_rotvec(rotaxis)
+        self.coefs = torch.tensor(r.apply(self.coefs))
+
 
 class BezierRandomSurface(BezierSurf):
     def __init__(self, d, device):
@@ -77,7 +85,9 @@ class BezierRandomSurface(BezierSurf):
         coefs[:, 1] = meshy.flatten()
         coefs[:, 2] = meshz.flatten()
 
-        surf = BezierSurf.get_surface(surf, coefs=coefs)
+        #surf = BezierSurf.get_surface(surf, coefs=coefs)
+        # set coefs
+        surf.coefs = coefs
 
         phi = random.randint(0, 180) * math.pi / 180
         rotaxis = np.random.rand(3)
