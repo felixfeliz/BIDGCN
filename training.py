@@ -31,7 +31,7 @@ log = open(f"logs/log{name}.csv", "w")
 log.write("trainingerror, validationerror, trainingparametererror, validationparametererror\n")
 
 
-dataset = TensorProductPolynomialData("./data/", length=300, n=3000, d=surfaceDegree)
+dataset = TensorProductPolynomialData("./data/", length=100000, n=1000, d=surfaceDegree)
 
 train_set, val_set = torch.utils.data.random_split(dataset,
                                                    [int(floor(len(dataset) * 0.8)), int(floor(len(dataset) * 0.2))])
